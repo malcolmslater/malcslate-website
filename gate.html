@@ -69,17 +69,43 @@ main { width:min(1160px,calc(100% - 24px)); margin:18px auto; }
   .filters { grid-template-columns:1fr; }
   header { padding:12px; }
 }
+
+/* ultra compact phone header */
+header { padding:6px 8px 7px !important; }
+h1 { font-size:.78rem !important; line-height:1 !important; letter-spacing:.03em !important; }
+.sub { display:none !important; }
+.compactFilters { display:grid !important; grid-template-columns:1fr !important; gap:5px !important; margin-top:5px !important; }
+.stageRow label { display:none !important; }
+.stageRow select { width:100% !important; }
+.quickRow { display:grid; grid-template-columns: minmax(80px,1fr) repeat(5,34px); gap:5px; align-items:center; }
+select,input { padding:6px 7px !important; font-size:.78rem !important; border-radius:6px !important; min-height:30px !important; }
+.dayBtn { border-radius:6px !important; padding:6px 0 !important; min-height:30px !important; font-size:.78rem !important; background:#164f5f !important; }
+.dayBtn.active { background:var(--hot) !important; }
+.buttons { margin-top:5px !important; gap:5px !important; flex-wrap:nowrap !important; overflow-x:auto !important; }
+.buttons button { padding:6px 8px !important; font-size:.72rem !important; }
+main { margin-top:7px !important; }
+.status { font-size:.78rem !important; margin-bottom:5px !important; }
+.dayTitle { margin:10px 0 4px !important; font-size:.9rem !important; }
+.card { padding:8px 9px !important; margin:5px 0 !important; }
+.artist { font-size:.88rem !important; }
+.day,.time,.stage,.note { font-size:.76rem !important; }
+
 </style>
 </head>
 <body>
 <header>
   <h1>GTSF Offline Schedule</h1>
   <div class="sub">Built from the uploaded HTML. Works offline.</div>
-  <div class="filters">
-    <div><label>Filter by Artist</label><select id="artist"></select></div>
-    <div><label>Filter by Day</label><select id="day"></select></div>
-    <div><label>Filter by Stage</label><select id="stage"></select></div>
-    <div><label>Search</label><input id="q" placeholder="artist, stage, note…"></div>
+  <div class="filters compactFilters">
+    <div class="stageRow"><label>Stage</label><select id="stage"></select></div>
+    <div class="quickRow">
+      <input id="q" placeholder="Search">
+      <button class="dayBtn active" data-day="">All</button>
+      <button class="dayBtn" data-day="Thursday">T</button>
+      <button class="dayBtn" data-day="Friday">F</button>
+      <button class="dayBtn" data-day="Saturday">S</button>
+      <button class="dayBtn" data-day="Sunday">S</button>
+    </div>
   </div>
   <div class="buttons">
     <button class="hot" id="nowBtn">Now / next</button>
@@ -98,7 +124,8 @@ const dayOrder = {Wednesday:0, Thursday:1, Friday:2, Saturday:3, Sunday:4};
 const festivalDates = {Thursday:"2026-07-02", Friday:"2026-07-03", Saturday:"2026-07-04", Sunday:"2026-07-05"};
 let mode = "all";
 const $ = id => document.getElementById(id);
-const els = {artist:$("artist"),day:$("day"),stage:$("stage"),q:$("q"),status:$("status"),results:$("results")};
+let currentDayFilter = "";
+const els = {stage:$("stage"),q:$("q"),status:$("status"),results:$("results")};
 
 function esc(s) { return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function uniq(a) { return [...new Set(a.filter(Boolean))]; }
@@ -121,23 +148,20 @@ function nextFavText() {
 }
 function fill(sel, vals, allLabel) { sel.innerHTML = `<option value="">${allLabel}</option>` + vals.map(v=>`<option>${esc(v)}</option>`).join(""); }
 function populate() {
-  fill(els.artist, uniq(schedule.map(r=>r.Artist)).sort((a,b)=>a.localeCompare(b)), "All");
-  fill(els.day, uniq(schedule.map(r=>r.Day)).sort((a,b)=>(dayOrder[a]??99)-(dayOrder[b]??99)), "All days");
   fill(els.stage, uniq(schedule.map(r=>r.Stage)).sort((a,b)=>a.localeCompare(b)), "All stages");
 }
 function baseFiltered() {
-  const q=els.q.value.trim().toLowerCase();
+  const q = els.q.value.trim().toLowerCase();
   return sortRows(schedule.filter(r =>
-    (!els.artist.value || r.Artist===els.artist.value) &&
-    (!els.day.value || r.Day===els.day.value) &&
-    (!els.stage.value || r.Stage===els.stage.value) &&
+    (!currentDayFilter || r.Day === currentDayFilter) &&
+    (!els.stage.value || r.Stage === els.stage.value) &&
     (!q || [r.Artist,r.Day,r.Stage,r.Start,r.End,r.Notes].join(" ").toLowerCase().includes(q)) &&
-    (mode!=="favs" || isFav(r))
+    (mode !== "favs" || isFav(r))
   ));
 }
 function nowRows() {
   const rows=baseFiltered(), d=new Date(), iso=d.toISOString().slice(0,10);
-  const day=Object.entries(festivalDates).find(([k,v])=>v===iso)?.[0] || els.day.value;
+  const day=Object.entries(festivalDates).find(([k,v])=>v===iso)?.[0] || currentDayFilter;
   const min=d.getHours()*60+d.getMinutes();
   const pool=day ? rows.filter(r=>r.Day===day) : rows;
   return sortRows([...new Map([...pool.filter(r=>toMin(r.Start)<=min&&min<=toMin(r.End)), ...pool.filter(r=>toMin(r.Start)>=min).slice(0,10)].map(r=>[key(r),r])).values()]);
@@ -172,7 +196,9 @@ function render() {
   els.results.innerHTML = html;
 }
 ["change","input"].forEach(evt => {
-  els.artist.addEventListener(evt,()=>{mode="all";render();});
+  els.stage.addEventListener(evt,()=>{mode="all";render();});
+  els.q.addEventListener(evt,()=>{mode="all";render();});
+});
   els.day.addEventListener(evt,()=>{mode="all";render();});
   els.stage.addEventListener(evt,()=>{mode="all";render();});
   els.q.addEventListener(evt,()=>{mode="all";render();});
@@ -180,11 +206,30 @@ function render() {
 $("nowBtn").onclick=()=>{mode="now";render();};
 $("favBtn").onclick=()=>{mode=mode==="favs"?"all":"favs";render();};
 $("stageMapBtn").onclick=()=>{mode="stageMap";render();};
-$("clearBtn").onclick=()=>{els.artist.value="";els.day.value="";els.stage.value="";els.q.value="";mode="all";render();};
+$("clearBtn").onclick=()=>{
+  els.stage.value="";
+  els.q.value="";
+  currentDayFilter="";
+  mode="all";
+  syncDayButtons();
+  render();
+};els.day.value="";els.stage.value="";els.q.value="";mode="all";render();};
 els.results.addEventListener("click", e => {
   const star=e.target.closest(".star"); if(star) { e.preventDefault(); toggleFav(star.dataset.favKey); return; }
   const st=e.target.closest(".stageChip"); if(st) { els.stage.value=st.dataset.stage; mode="all"; render(); }
 });
+
+document.querySelectorAll(".dayBtn").forEach(btn => {
+  btn.onclick = () => {
+    currentDayFilter = btn.dataset.day;
+    mode = "all";
+    syncDayButtons();
+    render();
+  };
+});
+function syncDayButtons() {
+  document.querySelectorAll(".dayBtn").forEach(btn => btn.classList.toggle("active", btn.dataset.day === currentDayFilter));
+}
 populate(); render();
 </script>
 </body>
