@@ -194,6 +194,63 @@ main {
   .artist { font-size:.94rem; }
   .meta { font-size:.82rem; }
 }
+
+html, body {
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+}
+header, main {
+  max-width:100vw;
+  overflow-x:hidden;
+}
+.quickRow, .actions, .card {
+  max-width:100%;
+}
+.actions {
+  grid-template-columns: 1fr 1fr 1fr .72fr;
+}
+.actions button {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.quickRow {
+  grid-template-columns:minmax(0,1fr) 36px 30px 30px 30px 30px;
+}
+.status {
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.stageFilter {
+  max-width:calc(100vw - 90px);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  vertical-align:middle;
+}
+.card {
+  min-width:0;
+}
+.artist,.meta,.note {
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+@media (max-width:390px) {
+  h1 { font-size:.78rem; }
+  .quickRow {
+    grid-template-columns:minmax(0,1fr) 33px 28px 28px 28px 28px;
+    gap:4px;
+  }
+  .actions {
+    gap:4px;
+  }
+  .actions button {
+    font-size:.7rem;
+    padding-left:3px;
+    padding-right:3px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -329,17 +386,12 @@ function render() {
   const stageTag = currentStage ? ` <span class="stageFilter">${esc(currentStage)} ✕</span>` : "";
   statusEl.innerHTML = `${rows.length} result${rows.length===1 ? "" : "s"}${stageTag}`;
 
-  let banner = "";
-  const favMsg = nextFavText();
-  if (mode === "favs") banner = `<div class="banner">❤️ My itinerary<br>${esc(favMsg)}</div>`;
-  else if (favMsg) banner = `<div class="banner">${esc(favMsg)}</div>`;
-
   if (!rows.length) {
-    resultsEl.innerHTML = banner + '<div class="empty">No matches.</div>';
+    resultsEl.innerHTML = '<div class="empty">No matches.</div>';
     return;
   }
 
-  let html = banner;
+  let html = "";
   let lastDay = "";
   for (const r of rows) {
     if (r.Day !== lastDay) {
