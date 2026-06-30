@@ -28,25 +28,20 @@ header {
 h1 {
   margin:0 0 5px;
   color:var(--cyan);
-  font-size:.82rem;
+  font-size:.84rem;
   line-height:1;
   text-transform:uppercase;
   letter-spacing:.05em;
 }
-.stageRow {
-  margin-bottom:5px;
-}
-select,input,button {
-  font-family:inherit;
-}
-select,input {
+select,input,button { font-family:inherit; }
+input {
   width:100%;
   border:0;
   border-radius:7px;
   background:var(--hot);
   color:white;
   padding:7px 8px;
-  font-size:.88rem;
+  font-size:.9rem;
   font-weight:900;
   min-height:34px;
 }
@@ -67,8 +62,9 @@ button {
   min-height:34px;
   font-size:.82rem;
 }
-button.hot, .dayBtn.active {
+button.hot, .dayBtn.active, .modeBtn.active {
   background:var(--hot);
+  box-shadow:0 0 0 2px rgba(255,255,255,.22) inset;
 }
 .actions {
   margin-top:5px;
@@ -85,7 +81,7 @@ main {
   margin:7px auto;
 }
 .status {
-  font-size:.85rem;
+  font-size:.86rem;
   font-weight:900;
   margin:0 0 5px;
 }
@@ -144,16 +140,11 @@ main {
   padding:0 3px;
   min-height:0;
   line-height:1;
+  box-shadow:none !important;
 }
-.star.on {
-  color:#ffe55d;
-}
-.onNow {
-  border:2px solid var(--green);
-}
-.soon15 {
-  border:2px solid var(--yellow);
-}
+.star.on { color:#ffe55d; }
+.onNow { border:2px solid var(--green); }
+.soon15 { border:2px solid var(--yellow); }
 .badge {
   display:inline-block;
   border-radius:999px;
@@ -188,49 +179,27 @@ main {
   opacity:.88;
   margin-top:3px;
 }
-@media (min-width: 700px) {
-  body { padding-bottom:20px; }
-  header { padding:10px 14px; }
-  h1 { font-size:1.05rem; }
-  main { max-width:900px; }
-  .card { grid-template-columns:1fr auto; }
+.stageFilter {
+  display:inline-block;
+  background:rgba(255,255,255,.16);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:3px 8px;
+  margin-left:5px;
 }
-@media (max-width: 360px) {
-  .quickRow {
-    grid-template-columns:minmax(80px,1fr) 34px 28px 28px 28px 28px;
-    gap:4px;
-  }
-  select,input,button { font-size:.78rem; min-height:31px; padding:6px; }
+@media (max-width:360px) {
+  .quickRow { grid-template-columns:minmax(80px,1fr) 34px 28px 28px 28px 28px; gap:4px; }
+  input,button { font-size:.78rem; min-height:31px; padding:6px; }
   .actions button { font-size:.68rem; }
-  .artist { font-size:.93rem; }
+  .artist { font-size:.94rem; }
   .meta { font-size:.82rem; }
 }
-
-.stageRow { display:none !important; }
-.modeActive {
-  background: var(--hot) !important;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.22) inset;
-}
-.quickRow {
-  grid-template-columns:minmax(110px,1fr) 38px 32px 32px 32px 32px !important;
-}
-.actions {
-  grid-template-columns:repeat(4,1fr);
-}
-
-
-
-.actions button.modeActive {
-  background: var(--hot) !important;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.28) inset;
-}
-
 </style>
 </head>
 <body>
 <header>
   <h1>GTSF</h1>
-<div class="quickRow">
+  <div class="quickRow">
     <input id="q" placeholder="Search">
     <button class="dayBtn active" data-day="">All</button>
     <button class="dayBtn" data-day="Thursday">T</button>
@@ -239,9 +208,9 @@ main {
     <button class="dayBtn" data-day="Sunday">S</button>
   </div>
   <div class="actions">
-    <button class="hot" id="nowBtn">Now/next</button>
-    <button id="favBtn">Itinerary</button>
-    <button id="stageMapBtn">Stages</button>
+    <button class="modeBtn" id="nowBtn">Now/next</button>
+    <button class="modeBtn" id="favBtn">Itinerary</button>
+    <button class="modeBtn" id="stageMapBtn">Stages</button>
     <button id="clearBtn">Clear</button>
   </div>
 </header>
@@ -323,9 +292,6 @@ function nextFavText() {
     ? `🔔 Next favourite starts in ${mins} mins: ${r.Artist} at ${r.Stage} (${r.Start})`
     : `❤️ Next favourite: ${r.Artist} at ${r.Stage} — ${r.Day} ${r.Start}`;
 }
-function populate() {
-  // No top/bottom stage selector in this compact version.
-}
 function baseFiltered() {
   const q = qEl.value.trim().toLowerCase();
   return sortRows(schedule.filter(r =>
@@ -347,18 +313,22 @@ function nowRows() {
     ...pool.filter(r => toMin(r.Start) >= min).slice(0,10)
   ].map(r => [key(r), r])).values()]);
 }
-function renderStageMap() {
+function renderStages() {
   const stages = uniq(schedule.map(r => r.Stage)).sort((a,b)=>a.localeCompare(b));
   statusEl.textContent = `${stages.length} stages`;
   resultsEl.innerHTML =
-    '<div class="banner">Tap a stage.</div><div class="stageGrid">' +
+    '<div class="banner">Tap a stage to filter the main list.</div><div class="stageGrid">' +
     stages.map(st => `<button class="stageChip" data-stage="${esc(st)}">${esc(st)}<small>${schedule.filter(r=>r.Stage===st).length} items</small></button>`).join("") +
     '</div>';
 }
 function render() {
-  if (mode === "stageMap") return renderStageMap();
+  syncButtons();
+  if (mode === "stageMap") return renderStages();
+
   const rows = mode === "now" ? nowRows() : baseFiltered();
-  statusEl.textContent = `${rows.length} result${rows.length===1 ? "" : "s"}`;
+  const stageTag = currentStage ? ` <span class="stageFilter">${esc(currentStage)} ✕</span>` : "";
+  statusEl.innerHTML = `${rows.length} result${rows.length===1 ? "" : "s"}${stageTag}`;
+
   let banner = "";
   const favMsg = nextFavText();
   if (mode === "favs") banner = `<div class="banner">❤️ My itinerary<br>${esc(favMsg)}</div>`;
@@ -389,48 +359,55 @@ function render() {
   }
   resultsEl.innerHTML = html;
 }
+function setMode(newMode) {
+  mode = (mode === newMode) ? "all" : newMode;
+  render();
+}
+function syncButtons() {
+  document.querySelectorAll(".modeBtn").forEach(b => b.classList.remove("active"));
+  if (mode === "now") document.getElementById("nowBtn").classList.add("active");
+  if (mode === "favs") document.getElementById("favBtn").classList.add("active");
+  if (mode === "stageMap") document.getElementById("stageMapBtn").classList.add("active");
+  document.querySelectorAll(".dayBtn").forEach(b => b.classList.toggle("active", b.dataset.day === currentDay));
+}
 
-qEl.addEventListener("input", () => { mode="all"; syncModeButtons(); render(); });
-
+qEl.addEventListener("input", () => { mode="all"; render(); });
 document.querySelectorAll(".dayBtn").forEach(btn => {
   btn.addEventListener("click", () => {
     currentDay = btn.dataset.day;
     mode = "all";
-    document.querySelectorAll(".dayBtn").forEach(b => b.classList.toggle("active", b.dataset.day === currentDay));
-    syncModeButtons();
     render();
   });
 });
-
-document.getElementById("nowBtn").onclick = () => { mode = mode==="now" ? "all" : "now"; syncModeButtons(); render(); }; syncModeButtons(); render(); };
-document.getElementById("favBtn").onclick = () => { mode = mode==="favs" ? "all" : "favs"; syncModeButtons(); render(); }; syncModeButtons(); render(); };
-document.getElementById("stageMapBtn").onclick = () => { mode = mode==="stageMap" ? "all" : "stageMap"; syncModeButtons(); render(); }; syncModeButtons(); render(); };
+document.getElementById("nowBtn").onclick = () => setMode("now");
+document.getElementById("favBtn").onclick = () => setMode("favs");
+document.getElementById("stageMapBtn").onclick = () => setMode("stageMap");
 document.getElementById("clearBtn").onclick = () => {
-  currentStage = "";
   qEl.value = "";
   currentDay = "";
+  currentStage = "";
   mode = "all";
-    syncModeButtons();
-  document.querySelectorAll(".dayBtn").forEach(b => b.classList.toggle("active", b.dataset.day === ""));
   render();
 };
 
 resultsEl.addEventListener("click", e => {
   const star = e.target.closest(".star");
   if (star) { e.preventDefault(); toggleFav(star.dataset.favKey); return; }
+
   const st = e.target.closest(".stageChip");
-  if (st) { currentStage = st.dataset.stage; mode = "all"; syncStageButtons(); syncModeButtons(); render(); }
+  if (st) {
+    currentStage = st.dataset.stage;
+    mode = "all";
+    render();
+    return;
+  }
+
+  if (e.target.closest(".stageFilter")) {
+    currentStage = "";
+    render();
+  }
 });
 
-
-function syncModeButtons() {
-  document.getElementById("nowBtn").classList.toggle("modeActive", mode === "now");
-  document.getElementById("favBtn").classList.toggle("modeActive", mode === "favs");
-  document.getElementById("stageMapBtn").classList.toggle("modeActive", mode === "stageMap");
-}
-
-populate();
-syncModeButtons();
 render();
 </script>
 </body>
